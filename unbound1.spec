@@ -1,4 +1,4 @@
-%{?!with_python2:     %global with_python2     0}
+%{?!with_python2:     %global with_python2     1}
 %{?!with_python3:     %global with_python3     1}
 %{?!with_munin:       %global with_munin       1}
 %bcond_with    dnstap
@@ -34,12 +34,12 @@
 %endif
 
 Summary: Validating, recursive, and caching DNS(SEC) resolver
-Name: unbound
+Name: unbound1
 Version: 1.10.1
 Release: 2%{?extra_version:.%{extra_version}}%{?dist}
 License: BSD
 Url: https://nlnetlabs.nl/projects/unbound/
-Source: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz
+Source: https://nlnetlabs.nl/downloads/unbound/unbound-%{version}%{?extra_version}.tar.gz
 Source1: unbound.service
 Source2: unbound.conf
 Source3: unbound.munin
@@ -56,7 +56,7 @@ Source14: unbound.sysconfig
 Source15: unbound-anchor.timer
 Source16: unbound-munin.README
 Source17: unbound-anchor.service
-Source18: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz.asc
+Source18: https://nlnetlabs.nl/downloads/unbound/unbound-%{version}%{?extra_version}.tar.gz.asc
 Source19: http://keys.gnupg.net/pks/lookup?op=get&search=0x9F6F1C2D7E045F8D#/wouter.nlnetlabs.nl.key
 
 # https://github.com/NLnetLabs/unbound/issues/220
@@ -91,6 +91,10 @@ BuildRequires: systemd
 # Needed because /usr/sbin/unbound links unbound libs staticly
 Requires: %{name}-libs%{?_isa} = %{version}-%{release}
 
+Provides:       unbound = %{version}-%{release}
+Provides:       unbound%{?_isa} = %{version}-%{release}
+Conflicts:      unbound < %{version}-%{release}
+
 %description
 Unbound is a validating, recursive, and caching DNS(SEC) resolver.
 
@@ -109,6 +113,10 @@ Requires: munin-node
 Requires: %{name} = %{version}-%{release}, bc
 BuildArch: noarch
 
+Provides:       unbound-munin = %{version}-%{release}
+Provides:       unbound-munin%{?_isa} = %{version}-%{release}
+Conflicts:      unbound-munin < %{version}-%{release}
+
 %description munin
 Plugin for the munin / munin-node monitoring package
 %endif
@@ -117,6 +125,10 @@ Plugin for the munin / munin-node monitoring package
 Summary: Development package that includes the unbound header files
 Requires: %{name}-libs%{?_isa} = %{version}-%{release}, openssl-devel
 Requires: pkgconfig
+
+Provides: unbound-devel = %{version}-%{release}
+Provides: unbound-devel%{?_isa} = %{version}-%{release}
+Conflicts: unbound-devel < %{version}-%{release}
 
 %description devel
 The devel package contains the unbound library and the include files
@@ -133,19 +145,23 @@ Obsoletes: python2-unbound < 1.9.3
 Contains libraries used by the unbound server and client applications
 
 %if 0%{with_python2}
-%package -n python2-unbound
-%{?python_provide:%python_provide python2-unbound}
+%package -n python2-%{name}
+%{?python_provide:%python_provide python2-%{name}}
 Summary: Python 2 modules and extensions for unbound
 Requires: %{name}-libs%{?_isa} = %{version}-%{release}
 Provides: unbound-python = %{version}-%{release}
 Obsoletes: unbound-python < %{version}-%{release}
 
-%description -n python2-unbound
+Provides:       python2-unbound = %{version}-%{release}
+Provides:       python2-unbound%{?_isa} = %{version}-%{release}
+Conflicts:      python2-unbound < %{version}-%{release}
+
+%description -n python2-%{name}
 Python 2 modules and extensions for unbound
 %endif
 
 %if 0%{with_python3}
-%package -n python3-unbound
+%package -n python3-%{name}
 Summary: Python 3 modules and extensions for unbound
 Requires: %{name}-libs%{?_isa} = %{version}-%{release}
 %if ! 0%{with_python2}
@@ -153,14 +169,18 @@ Requires: %{name}-libs%{?_isa} = %{version}-%{release}
 Conflicts: python2-unbound < 1.9.3
 %endif
 
-%description -n python3-unbound
+Provides:       python3-unbound = %{version}-%{release}
+Provides:       python3-unbound%{?_isa} = %{version}-%{release}
+Conflicts:      python3-unbound < %{version}-%{release}
+
+%description -n python3-%{name}
 Python 3 modules and extensions for unbound
 %endif
 
 
 %prep
-%{?gpgverify:%gpgverify -k 19 -s 18 -d 0}
-%global pkgname %{name}-%{version}%{?extra_version}
+%{?gpgverify:%gpgverify --keyring=%{SOURCE19} --signature=%{SOURCE18} --data=%{SOURCE0}}
+%global pkgname unbound-%{version}%{?extra_version}
 
 %if 0%{with_python2} && 0%{with_python3}
 %global dir_primary %{pkgname}_python3
@@ -198,8 +218,8 @@ cp -a %{dir_primary} %{dir_secondary}
             --disable-rpath --disable-static \\\
             --enable-relro-now --enable-pie \\\
             --enable-subnet --enable-ipsecmod \\\
-            --with-conf-file=%{_sysconfdir}/%{name}/unbound.conf \\\
-            --with-pidfile=%{_rundir}/%{name}/%{name}.pid \\\
+            --with-conf-file=%{_sysconfdir}/unbound/unbound.conf \\\
+            --with-pidfile=%{_rundir}/unbound/unbound.pid \\\
             --enable-sha2 --disable-gost --enable-ecdsa \\\
             --with-rootkey-file=%{_sharedstatedir}/unbound/root.key
 
@@ -375,22 +395,22 @@ popd
 
 %files
 %doc doc/CREDITS doc/FEATURES
-%{_unitdir}/%{name}.service
-%{_unitdir}/%{name}-keygen.service
-%attr(0755,unbound,unbound) %dir %{_localstatedir}/run/%{name}
+%{_unitdir}/unbound.service
+%{_unitdir}/unbound-keygen.service
+%attr(0755,unbound,unbound) %dir %{_localstatedir}/run/unbound
 %attr(0644,root,root) %{_tmpfilesdir}/unbound.conf
-%attr(0644,root,root) %config(noreplace) %{_sysconfdir}/%{name}/unbound.conf
-%attr(0644,root,root) %config(noreplace) %{_sysconfdir}/sysconfig/%{name}
-%dir %attr(0755,root,unbound) %{_sysconfdir}/%{name}/keys.d
-%attr(0644,root,unbound) %config(noreplace) %{_sysconfdir}/%{name}/keys.d/*.key
-%dir %attr(0755,root,unbound) %{_sysconfdir}/%{name}/conf.d
-%attr(0644,root,unbound) %config(noreplace) %{_sysconfdir}/%{name}/conf.d/*.conf
-%dir %attr(0755,root,unbound) %{_sysconfdir}/%{name}/local.d
-%attr(0644,root,unbound) %config(noreplace) %{_sysconfdir}/%{name}/local.d/*.conf
-%ghost %attr(0640,root,unbound) %{_sysconfdir}/%{name}/unbound_control.pem
-%ghost %attr(0640,root,unbound) %{_sysconfdir}/%{name}/unbound_control.key
-%ghost %attr(0640,root,unbound) %{_sysconfdir}/%{name}/unbound_server.pem
-%ghost %attr(0640,root,unbound) %{_sysconfdir}/%{name}/unbound_server.key
+%attr(0644,root,root) %config(noreplace) %{_sysconfdir}/unbound/unbound.conf
+%attr(0644,root,root) %config(noreplace) %{_sysconfdir}/sysconfig/unbound
+%dir %attr(0755,root,unbound) %{_sysconfdir}/unbound/keys.d
+%attr(0644,root,unbound) %config(noreplace) %{_sysconfdir}/unbound/keys.d/*.key
+%dir %attr(0755,root,unbound) %{_sysconfdir}/unbound/conf.d
+%attr(0644,root,unbound) %config(noreplace) %{_sysconfdir}/unbound/conf.d/*.conf
+%dir %attr(0755,root,unbound) %{_sysconfdir}/unbound/local.d
+%attr(0644,root,unbound) %config(noreplace) %{_sysconfdir}/unbound/local.d/*.conf
+%ghost %attr(0640,root,unbound) %{_sysconfdir}/unbound/unbound_control.pem
+%ghost %attr(0640,root,unbound) %{_sysconfdir}/unbound/unbound_control.key
+%ghost %attr(0640,root,unbound) %{_sysconfdir}/unbound/unbound_server.pem
+%ghost %attr(0640,root,unbound) %{_sysconfdir}/unbound/unbound_server.key
 %{_sbindir}/unbound
 %{_sbindir}/unbound-checkconf
 %{_sbindir}/unbound-control
@@ -403,7 +423,7 @@ popd
 %{_mandir}/man8/*
 
 %if 0%{with_python2}
-%files -n python2-unbound
+%files -n python2-%{name}
 %license pythonmod/LICENSE
 %{python2_sitearch}/*
 %doc libunbound/python/examples/*
@@ -411,7 +431,7 @@ popd
 %endif
 
 %if 0%{with_python3}
-%files -n python3-unbound
+%files -n python3-%{name}
 %license pythonmod/LICENSE
 %{python3_sitearch}/*
 %doc libunbound/python/examples/*
@@ -435,17 +455,17 @@ popd
 %files libs
 %doc doc/README
 %license doc/LICENSE
-%attr(0755,root,root) %dir %{_sysconfdir}/%{name}
+%attr(0755,root,root) %dir %{_sysconfdir}/unbound
 %{_sbindir}/unbound-anchor
 %{_libdir}/libunbound.so.*
 %{_mandir}/man8/unbound-anchor*
-%{_sysconfdir}/%{name}/icannbundle.pem
+%{_sysconfdir}/unbound/icannbundle.pem
 %{_unitdir}/unbound-anchor.timer
 %{_unitdir}/unbound-anchor.service
-%dir %attr(0755,unbound,unbound) %{_sharedstatedir}/%{name}
-%attr(0644,unbound,unbound) %config %{_sharedstatedir}/%{name}/root.key
+%dir %attr(0755,unbound,unbound) %{_sharedstatedir}/unbound
+%attr(0644,unbound,unbound) %config %{_sharedstatedir}/unbound/root.key
 # just left for backwards compat with user changed unbound.conf files - format is different!
-%attr(0644,root,root) %config %{_sysconfdir}/%{name}/root.key
+%attr(0644,root,root) %config %{_sysconfdir}/unbound/root.key
 
 %changelog
 * Fri May 22 2020 Miro Hrončok <mhroncok@redhat.com> - 1.10.1-2
