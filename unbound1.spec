@@ -144,6 +144,14 @@ Obsoletes: python2-unbound < 1.9.3
 %description libs
 Contains libraries used by the unbound server and client applications
 
+%package anchor
+Summary: Dnssec trust anchor and management utilities for unbound
+Conflicts: unbound-libs < %{version}-%release}
+
+%description anchor
+The unbound-anchor tool for managing dnssec trust anchors for unbound
+along with some initial trust anchors
+
 %if 0%{with_python2}
 %package -n python2-%{name}
 %{?python_provide:%python_provide python2-%{name}}
@@ -351,6 +359,8 @@ useradd -r -g unbound -d %{_sysconfdir}/unbound -s /sbin/nologin \
 
 %post libs
 %{?ldconfig}
+
+%post anchor
 %systemd_post unbound-anchor.timer
 # start the timer only if installing the package to prevent starting it, if it was stopped on purpose
 if [ "$1" -eq 1 ]; then
@@ -362,7 +372,7 @@ fi
 %systemd_preun unbound.service
 %systemd_preun unbound-keygen.service
 
-%preun libs
+%preun anchor
 %systemd_preun unbound-anchor.timer
 
 %postun
@@ -371,6 +381,8 @@ fi
 
 %postun libs
 %{?ldconfig}
+
+%postun anchor
 %systemd_postun_with_restart unbound-anchor.timer
 
 %check
@@ -455,9 +467,10 @@ popd
 %files libs
 %doc doc/README
 %license doc/LICENSE
-%attr(0755,root,root) %dir %{_sysconfdir}/unbound
-%{_sbindir}/unbound-anchor
 %{_libdir}/libunbound.so.*
+
+%files anchor
+%{_sbindir}/unbound-anchor
 %{_mandir}/man8/unbound-anchor*
 %{_sysconfdir}/unbound/icannbundle.pem
 %{_unitdir}/unbound-anchor.timer
