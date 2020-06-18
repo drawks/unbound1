@@ -2,7 +2,12 @@
 %{?!with_python3:     %global with_python3     1}
 %{?!with_munin:       %global with_munin       1}
 %bcond_with    dnstap
-%bcond_with    systemd
+
+%if 0%{?rhel} >= 7
+%bcond_without systemd
+%else
+%bcond_with systemd
+%endif
 
 %global _hardened_build 1
 
@@ -58,6 +63,8 @@ Source16: unbound-munin.README
 Source17: unbound-anchor.service
 Source18: https://nlnetlabs.nl/downloads/unbound/unbound-%{version}%{?extra_version}.tar.gz.asc
 Source19: http://keys.gnupg.net/pks/lookup?op=get&search=0x9F6F1C2D7E045F8D#/wouter.nlnetlabs.nl.key
+Source20: unbound.cron
+Source21: unbound.init
 
 # https://github.com/NLnetLabs/unbound/issues/220
 Patch0: unbound-1.10.0-auth-callback.patch
@@ -78,11 +85,11 @@ BuildRequires: fstrm-devel protobuf-c-devel
 %endif
 %if %{with systemd}
 BuildRequires: systemd-devel
-%endif
 %if 0%{?fedora} >= 30
 BuildRequires: systemd-rpm-macros
 %else
 BuildRequires: systemd
+%endif
 %endif
 # Required for SVN versions
 # BuildRequires: bison
