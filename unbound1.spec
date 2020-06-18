@@ -289,11 +289,26 @@ pushd %{dir_primary}
 install -m 0755 streamtcp %{buildroot}%{_sbindir}/unbound-streamtcp
 popd
 
-install -d -m 0755 %{buildroot}%{_unitdir} %{buildroot}%{_sysconfdir}/sysconfig
+%if %{with systemd}
+# Install systemd units
+install -d -m 0755 %{buildroot}%{_unitdir}
 install -p -m 0644 %{SOURCE1} %{buildroot}%{_unitdir}/unbound.service
 install -p -m 0644 %{SOURCE7} %{buildroot}%{_unitdir}/unbound-keygen.service
 install -p -m 0644 %{SOURCE15} %{buildroot}%{_unitdir}/unbound-anchor.timer
 install -p -m 0644 %{SOURCE17} %{buildroot}%{_unitdir}/unbound-anchor.service
+
+# Install tmpfiles.d config
+install -d -m 0755 %{buildroot}%{_tmpfilesdir}
+install -m 0644 %{SOURCE8} %{buildroot}%{_tmpfilesdir}/unbound.conf
+
+%else
+#install cronjob and sysV init
+install -d -m 0755 %{buildroot}%{_initddir} %{buildroot}%{_sysconfdir}/cron.d
+install -p -m 0755 %{SOURCE21} %{buildroot}%{_initddir}/unbound
+install -p -m 0600 %{SOURCE20} %{buildroot}%{_sysconfdir}/cron.d/unbound
+%endif
+
+install -d -m 0755 %{buildroot}%{_sysconfdir}/sysconfig %{buildroot}%{_sharedstatedir}/unbound
 install -p -m 0755 %{SOURCE2} %{buildroot}%{_sysconfdir}/unbound
 install -p -m 0644 %{SOURCE12} %{buildroot}%{_sysconfdir}/unbound
 install -p -m 0644 %{SOURCE14} %{buildroot}%{_sysconfdir}/sysconfig/unbound
@@ -313,10 +328,6 @@ pushd %{dir_primary}
 install -m 0644 testcode/streamtcp.1 %{buildroot}/%{_mandir}/man1/unbound-streamtcp.1
 install -D -m 0644 contrib/libunbound.pc %{buildroot}/%{_libdir}/pkgconfig/libunbound.pc
 popd
-
-# Install tmpfiles.d config
-install -d -m 0755 %{buildroot}%{_tmpfilesdir} %{buildroot}%{_sharedstatedir}/unbound
-install -m 0644 %{SOURCE8} %{buildroot}%{_tmpfilesdir}/unbound.conf
 
 # install root - we keep a copy of the root key in old location,
 # in case user has changed the configuration and we wouldn't update it there
@@ -361,36 +372,59 @@ useradd -r -g unbound -d %{_sysconfdir}/unbound -s /sbin/nologin \
 -c "Unbound DNS resolver" unbound
 
 %post
+%if %{with systemd}
 %systemd_post unbound.service
 %systemd_post unbound-keygen.service
+%else
+/sbin/chkconfig --add unbound
+%endif
 
 %post libs
 %{?ldconfig}
 
 %post anchor
+%if %{with systemd}
 %systemd_post unbound-anchor.timer
 # start the timer only if installing the package to prevent starting it, if it was stopped on purpose
 if [ "$1" -eq 1 ]; then
     # the Unit is in presets, but would be started after reboot
     /bin/systemctl start unbound-anchor.timer >/dev/null 2>&1 || :
 fi
+%endif
 
 %preun
+%if %{with systemd}
 %systemd_preun unbound.service
 %systemd_preun unbound-keygen.service
+%else
+if [ "$1" -eq 0 ]; then
+        /sbin/service unbound stop >/dev/null 2>&1
+        /sbin/chkconfig --del unbound
+fi
+%endif
 
 %preun anchor
+%if %{with systemd}
 %systemd_preun unbound-anchor.timer
+%endif
 
 %postun
+%if %{with systemd}
 %systemd_postun_with_restart unbound.service
 %systemd_postun unbound-keygen.service
+%else
+if [ "$1" -ge "1" ]; then
+  /sbin/service unbound condrestart >/dev/null 2>&1 || :
+fi
+%endif
 
 %postun libs
 %{?ldconfig}
 
 %postun anchor
+%if %{with systemd}
 %systemd_postun_with_restart unbound-anchor.timer
+%endif
 
 %check
 pushd %{dir_primary}
@@ -414,10 +448,14 @@ popd
 
 %files
 %doc doc/CREDITS doc/FEATURES
+%if %{with systemd}
 %{_unitdir}/unbound.service
 %{_unitdir}/unbound-keygen.service
-%attr(0755,unbound,unbound) %dir %{_localstatedir}/run/unbound
 %attr(0644,root,root) %{_tmpfilesdir}/unbound.conf
+%else
+%attr(0755,root,root) %{_initddir}/unbound
+%endif
+%attr(0755,unbound,unbound) %dir %{_localstatedir}/run/unbound
 %attr(0644,root,root) %config(noreplace) %{_sysconfdir}/unbound/unbound.conf
 %attr(0644,root,root) %config(noreplace) %{_sysconfdir}/sysconfig/unbound
 %dir %attr(0755,root,unbound) %{_sysconfdir}/unbound/keys.d
@@ -480,8 +518,12 @@ popd
 %{_sbindir}/unbound-anchor
 %{_mandir}/man8/unbound-anchor*
 %{_sysconfdir}/unbound/icannbundle.pem
+%if %{with systemd}
 %{_unitdir}/unbound-anchor.timer
 %{_unitdir}/unbound-anchor.service
+%else
+%attr(0600,root,root) %{_sysconfdir}/cron.d/unbound
+%endif
 %dir %attr(0755,unbound,unbound) %{_sharedstatedir}/unbound
 %attr(0644,unbound,unbound) %config %{_sharedstatedir}/unbound/root.key
 # just left for backwards compat with user changed unbound.conf files - format is different!
