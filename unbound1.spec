@@ -305,7 +305,7 @@ install -m 0644 %{SOURCE8} %{buildroot}%{_tmpfilesdir}/unbound.conf
 #install cronjob and sysV init
 install -d -m 0755 %{buildroot}%{_initddir} %{buildroot}%{_sysconfdir}/cron.d
 install -p -m 0755 %{SOURCE21} %{buildroot}%{_initddir}/unbound
-install -p -m 0600 %{SOURCE20} %{buildroot}%{_sysconfdir}/cron.d/unbound
+install -p -m 0600 %{SOURCE20} %{buildroot}%{_sysconfdir}/cron.d/unbound-anchor
 %endif
 
 install -d -m 0755 %{buildroot}%{_sysconfdir}/sysconfig %{buildroot}%{_sharedstatedir}/unbound
@@ -522,7 +522,7 @@ popd
 %{_unitdir}/unbound-anchor.timer
 %{_unitdir}/unbound-anchor.service
 %else
-%attr(0600,root,root) %{_sysconfdir}/cron.d/unbound
+%attr(0644,root,root) %{_sysconfdir}/cron.d/unbound-anchor
 %endif
 %dir %attr(0755,unbound,unbound) %{_sharedstatedir}/unbound
 %attr(0644,unbound,unbound) %config %{_sharedstatedir}/unbound/root.key
